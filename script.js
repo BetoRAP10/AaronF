@@ -1,276 +1,162 @@
-/**
- * prototipo-delivery/script.js
- * Restaurantes → platos → resumen → confirmación. Sin módulos ES6.
- */
+const app = {
+    state: {
+        currentPanel: 'restaurantes',
+        cart: [],
+        selectedRestaurant: null
+    },
 
-(function () {
-  'use strict';
+    data: {
+        restaurantes: [
+            { id: 'r1', nombre: 'Pizzería Napoli', cat: 'pizza', img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500' },
+            { id: 'r2', nombre: 'Sushi Roll', cat: 'asiatica', img: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500' },
+            { id: 'r3', nombre: 'Burger Norte', cat: 'hamburguesas', img: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500' }
+        ],
+        menu: {
+            r1: [{id: 'p1', nombre: 'Pizza Margarita', precio: 12.00}, {id: 'p2', nombre: 'Pizza Pepperoni', precio: 14.50}],
+            r2: [{id: 'p3', nombre: 'Combo Sushi 12pcs', precio: 18.00}],
+            r3: [{id: 'p4', nombre: 'Burger Clásica', precio: 10.50}]
+        }
+    },
 
-  var RESTAURANTES = [
-    { id: 'r1', nombre: 'Pizzería Napoli', categoria: 'pizza', img: './assets/rest-r1.svg' },
-    { id: 'r2', nombre: 'Sushi Roll', categoria: 'asiatica', img: './assets/rest-r2.svg' },
-    { id: 'r3', nombre: 'Burger Norte', categoria: 'hamburguesas', img: './assets/rest-r3.svg' },
-    { id: 'r4', nombre: 'Mamma Mia Express', categoria: 'pizza', img: './assets/rest-r4.svg' }
-  ];
+    init() {
+        this.renderRestaurantes();
+        this.bindEvents();
+    },
 
-  /** Platos por restaurante (cada uno con imagen en ./assets/) */
-  var MENU = {
-    r1: [
-      { id: 'm1', nombre: 'Margarita', precio: 8.5, img: './assets/dish-m1.svg' },
-      { id: 'm2', nombre: 'Cuatro quesos', precio: 10.9, img: './assets/dish-m2.svg' }
-    ],
-    r2: [
-      { id: 'm3', nombre: 'Menú maki (12 pzs)', precio: 14.0, img: './assets/dish-m3.svg' },
-      { id: 'm4', nombre: 'Yakisoba', precio: 9.5, img: './assets/dish-m4.svg' }
-    ],
-    r3: [
-      { id: 'm5', nombre: 'Clásica + patatas', precio: 11.0, img: './assets/dish-m5.svg' },
-      { id: 'm6', nombre: 'Veggie', precio: 10.5, img: './assets/dish-m6.svg' }
-    ],
-    r4: [
-      { id: 'm7', nombre: 'Calzone', precio: 9.0, img: './assets/dish-m7.svg' },
-      { id: 'm8', nombre: 'Prosciutto', precio: 11.5, img: './assets/dish-m8.svg' }
-    ]
-  };
+    bindEvents() {
+        document.getElementById('cart-toggle').onclick = () => this.toggleSidebar(true);
+        document.getElementById('close-sidebar').onclick = () => this.toggleSidebar(false);
+        
+        // Filtros por categoría
+        document.querySelectorAll('.pill').forEach(btn => {
+            btn.onclick = (e) => {
+                document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+                e.target.classList.add('active');
+                this.renderRestaurantes(e.target.dataset.cat);
+            };
+        });
+    },
 
-  var restauranteActual = null;
-  /** pedido: { idPlato, nombre, precioUnit, cantidad } */
-  var pedido = [];
+    showPanel(id) {
+        document.querySelectorAll('.panel').forEach(p => p.hidden = true);
+        const target = document.getElementById(`panel-${id}`);
+        target.hidden = false;
+        
+        // Actualizar Stepper
+        const stepMap = { 'restaurantes': 1, 'menu': 2, 'checkout': 3 };
+        document.querySelectorAll('.step').forEach(s => {
+            s.classList.toggle('active', parseInt(s.dataset.step) <= stepMap[id]);
+        });
+        
+        this.toggleSidebar(false);
+        window.scrollTo(0,0);
+    },
 
-  var elFiltro = document.getElementById('filtro-cat');
-  var elListaRest = document.getElementById('lista-restaurantes');
-  var elStepRest = document.getElementById('step-restaurante');
-  var elStepProd = document.getElementById('step-productos');
-  var elStepRes = document.getElementById('step-resumen');
-  var elStepConf = document.getElementById('step-confirmacion');
-  var elTituloRest = document.getElementById('titulo-restaurante');
-  var elListaPlatos = document.getElementById('lista-platos');
-  var elListaResumen = document.getElementById('lista-resumen');
-  var elResumenVacio = document.getElementById('resumen-vacio');
-  var elTotal = document.getElementById('total-delivery');
-  var elMsgConfirm = document.getElementById('msg-confirm');
+    renderRestaurantes(filter = 'todas') {
+        const grid = document.getElementById('grid-restaurantes');
+        const list = filter === 'todas' ? this.data.restaurantes : this.data.restaurantes.filter(r => r.cat === filter);
+        
+        grid.innerHTML = list.map(r => `
+            <div class="card" onclick="app.openMenu('${r.id}')">
+                <img src="${r.img}" class="card-img" alt="${r.nombre}">
+                <div class="card-content">
+                    <h3>${r.nombre}</h3>
+                    <p style="color:var(--text-muted)">${r.cat.toUpperCase()}</p>
+                </div>
+            </div>
+        `).join('');
+    },
 
-  function mostrarSoloPanel(panel) {
-    var panels = [elStepRest, elStepProd, elStepRes, elStepConf];
-    for (var i = 0; i < panels.length; i++) {
-      var p = panels[i];
-      var on = p === panel;
-      p.classList.toggle('active', on);
-      p.hidden = !on;
-    }
-    actualizarIndicadoresPasos(panel);
-  }
+    openMenu(id) {
+        const res = this.data.restaurantes.find(r => r.id === id);
+        this.state.selectedRestaurant = res;
+        document.getElementById('current-res-name').textContent = res.nombre;
+        
+        const grid = document.getElementById('grid-platos');
+        grid.innerHTML = (this.data.menu[id] || []).map(p => `
+            <div class="card" style="cursor: default">
+                <div class="card-content">
+                    <h4>${p.nombre}</h4>
+                    <p style="color:var(--primary); font-weight:800; margin: 10px 0;">${p.precio.toFixed(2)} €</p>
+                    <button class="btn-action" onclick="app.addToCart('${p.nombre}', ${p.precio})">Añadir al carrito</button>
+                </div>
+            </div>
+        `).join('');
 
-  function actualizarIndicadoresPasos(panel) {
-    var n = '0';
-    if (panel === elStepRest) n = '1';
-    if (panel === elStepProd) n = '2';
-    if (panel === elStepRes) n = '3';
-    if (panel === elStepConf) n = '3';
+        this.showPanel('menu');
+    },
 
-    var indicadores = document.querySelectorAll('[data-step-indicator]');
-    for (var i = 0; i < indicadores.length; i++) {
-      var el = indicadores[i];
-      var step = el.getAttribute('data-step-indicator');
-      el.classList.toggle('active', step === n || (panel === elStepConf && step === '3'));
-    }
-  }
+    addToCart(nombre, precio) {
+        this.state.cart.push({ nombre, precio });
+        this.updateUI();
+        
+        // Retroalimentación visual: Agitar el icono del carrito
+        const btn = document.getElementById('cart-toggle');
+        btn.classList.add('shake-cart');
+        setTimeout(() => btn.classList.remove('shake-cart'), 400);
+    },
 
-  function filtrarRestaurantes() {
-    var cat = elFiltro.value;
-    elListaRest.innerHTML = '';
-    for (var i = 0; i < RESTAURANTES.length; i++) {
-      var r = RESTAURANTES[i];
-      if (cat !== 'todas' && r.categoria !== cat) continue;
-      var li = document.createElement('li');
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'card-rest';
-      btn.setAttribute('data-rest', r.id);
-      btn.innerHTML =
-        '<span class="card-rest__media"><img src="' +
-        r.img +
-        '" width="72" height="72" alt="" loading="lazy"></span>' +
-        '<span class="card-rest__body"><strong>' +
-        escapeHtml(r.nombre) +
-        '</strong><span class="tag">' +
-        escapeHtml(r.categoria) +
-        '</span></span>';
-      li.appendChild(btn);
-      elListaRest.appendChild(li);
-    }
-  }
+    updateUI() {
+        const count = this.state.cart.length;
+        document.getElementById('cart-badge').textContent = count;
+        
+        const total = this.state.cart.reduce((s, i) => s + i.precio, 0);
+        document.getElementById('sidebar-total').textContent = `${total.toFixed(2)} €`;
+        document.getElementById('final-price').textContent = `${total.toFixed(2)} €`;
 
-  function escapeHtml(s) {
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-  }
+        const sidebarList = document.getElementById('sidebar-items');
+        sidebarList.innerHTML = this.state.cart.map((item, idx) => `
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid #334155; padding-bottom:8px;">
+                <span>${item.nombre}</span>
+                <strong>${item.precio.toFixed(2)}€</strong>
+            </div>
+        `).join('');
 
-  function abrirMenu(restId) {
-    restauranteActual = restId;
-    var r = null;
-    for (var i = 0; i < RESTAURANTES.length; i++) {
-      if (RESTAURANTES[i].id === restId) {
-        r = RESTAURANTES[i];
-        break;
-      }
-    }
-    elTituloRest.textContent = r ? r.nombre : 'Menú';
-    var platos = MENU[restId] || [];
-    elListaPlatos.innerHTML = '';
-    for (var j = 0; j < platos.length; j++) {
-      var pl = platos[j];
-      var li = document.createElement('li');
-      li.className = 'plato-row';
-      li.innerHTML =
-        '<img class="plato-thumb" src="' +
-        pl.img +
-        '" width="52" height="52" alt="">' +
-        '<div class="plato-info"><span class="plato-nombre">' +
-        escapeHtml(pl.nombre) +
-        '</span></div>' +
-        '<span class="plato-precio">' +
-        formatEuros(pl.precio) +
-        '</span>' +
-        '<button type="button" class="btn-mini" data-add-plato="' +
-        pl.id +
-        '" data-nombre="' +
-        escapeAttr(pl.nombre) +
-        '" data-precio="' +
-        pl.precio +
-        '" data-img="' +
-        escapeAttr(pl.img) +
-        '">+</button>';
-      elListaPlatos.appendChild(li);
-    }
-    mostrarSoloPanel(elStepProd);
-  }
+        const checkoutList = document.getElementById('checkout-list');
+        if(checkoutList) checkoutList.innerHTML = sidebarList.innerHTML;
+    },
 
-  function escapeAttr(s) {
-    return String(s).replace(/"/g, '&quot;');
-  }
+    toggleSidebar(open) {
+        document.getElementById('sidebar').classList.toggle('active', open);
+    },
+    // ... (Mantener el objeto app y añadir/modificar estos métodos) ...
 
-  function lineaPedido(idPlato) {
-    for (var i = 0; i < pedido.length; i++) {
-      if (pedido[i].idPlato === idPlato) return pedido[i];
-    }
-    return null;
-  }
+    completeOrder() {
+        // Aquí podríamos disparar un evento de Clarity personalizado
+        if(window.clarity) {
+            window.clarity("event", "pedido_completado");
+        }
+        this.showPanel('exito');
+    },
 
-  function agregarPlato(idPlato, nombre, precio, img) {
-    var linea = lineaPedido(idPlato);
-    if (linea) {
-      linea.cantidad += 1;
-    } else {
-      pedido.push({
-        idPlato: idPlato,
-        nombre: nombre,
-        precioUnit: precio,
-        cantidad: 1,
-        img: img
-      });
-    }
-  }
+    resetToHome() {
+        // Limpiar estado para una nueva compra
+        this.state.cart = [];
+        this.state.selectedRestaurant = null;
+        this.updateUI();
+        this.showPanel('restaurantes');
+    },
 
-  function totalPedido() {
-    var t = 0;
-    for (var i = 0; i < pedido.length; i++) {
-      t += pedido[i].precioUnit * pedido[i].cantidad;
-    }
-    return t;
-  }
+    showPanel(id) {
+        document.querySelectorAll('.panel').forEach(p => p.hidden = true);
+        const target = document.getElementById(`panel-${id}`);
+        if(target) target.hidden = false;
+        
+        // El stepper solo se muestra en los primeros 3 pasos
+        const stepMap = { 'restaurantes': 1, 'menu': 2, 'checkout': 3, 'exito': 3 };
+        document.querySelectorAll('.step').forEach(s => {
+            const stepNum = parseInt(s.dataset.step);
+            s.classList.toggle('active', stepNum <= stepMap[id]);
+        });
+        
+        this.toggleSidebar(false);
+        window.scrollTo(0,0);
+    },
 
-  function formatEuros(n) {
-    return Number(n).toFixed(2).replace('.', ',') + ' €';
-  }
+// ... (El resto de funciones permanecen igual para mantener la lógica de añadir al carrito) ...
+    
+};
 
-  function pintarResumen() {
-    elListaResumen.innerHTML = '';
-    if (pedido.length === 0) {
-      elResumenVacio.hidden = false;
-    } else {
-      elResumenVacio.hidden = true;
-    }
-    for (var i = 0; i < pedido.length; i++) {
-      var l = pedido[i];
-      var li = document.createElement('li');
-      li.className = 'resumen-line';
-      li.innerHTML =
-        '<img class="resumen-thumb" src="' +
-        l.img +
-        '" width="40" height="40" alt="">' +
-        '<span class="resumen-nombre">' +
-        escapeHtml(l.nombre) +
-        ' × ' +
-        l.cantidad +
-        '</span><span class="resumen-precio">' +
-        formatEuros(l.precioUnit * l.cantidad) +
-        '</span>';
-      elListaResumen.appendChild(li);
-    }
-    elTotal.textContent = formatEuros(totalPedido());
-  }
 
-  elListaRest.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-rest]');
-    if (!btn) return;
-    abrirMenu(btn.getAttribute('data-rest'));
-  });
 
-  elFiltro.addEventListener('change', filtrarRestaurantes);
-
-  elListaPlatos.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-add-plato]');
-    if (!b) return;
-    var id = b.getAttribute('data-add-plato');
-    var nombre = b.getAttribute('data-nombre');
-    var precio = parseFloat(b.getAttribute('data-precio'), 10);
-    var imgPlato = b.getAttribute('data-img') || '';
-    agregarPlato(id, nombre, precio, imgPlato);
-  });
-
-  document.getElementById('btn-volver-rest').addEventListener('click', function () {
-    mostrarSoloPanel(elStepRest);
-  });
-
-  document.getElementById('btn-carrito').addEventListener('click', function () {
-    pintarResumen();
-    mostrarSoloPanel(elStepRes);
-  });
-
-  document.getElementById('btn-seguir-comprando').addEventListener('click', function () {
-    if (restauranteActual) abrirMenu(restauranteActual);
-    else mostrarSoloPanel(elStepRest);
-  });
-
-  document.getElementById('btn-comprar').addEventListener('click', function () {
-    if (pedido.length === 0) {
-      alert('Añada al menos un plato antes de confirmar.');
-      return;
-    }
-    var nombreRest = '';
-    for (var i = 0; i < RESTAURANTES.length; i++) {
-      if (RESTAURANTES[i].id === restauranteActual) {
-        nombreRest = RESTAURANTES[i].nombre;
-        break;
-      }
-    }
-    elMsgConfirm.textContent =
-      'Su pedido en ' +
-      nombreRest +
-      ' por ' +
-      formatEuros(totalPedido()) +
-      ' está en preparación. Tiempo aproximado: 35 minutos.';
-    pedido = [];
-    pintarResumen();
-    mostrarSoloPanel(elStepConf);
-  });
-
-  document.getElementById('btn-nuevo').addEventListener('click', function () {
-    restauranteActual = null;
-    mostrarSoloPanel(elStepRest);
-  });
-
-  filtrarRestaurantes();
-})();
+app.init();

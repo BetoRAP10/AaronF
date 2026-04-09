@@ -38,10 +38,12 @@ const app = {
     },
 
     bindEvents() {
-        document.getElementById('cart-toggle').onclick = () => this.toggleSidebar(true);
-        document.getElementById('close-sidebar').onclick = () => this.toggleSidebar(false);
+        const cartToggle = document.getElementById('cart-toggle');
+        const closeSidebar = document.getElementById('close-sidebar');
         
-        // Filtros por categoría
+        if(cartToggle) cartToggle.onclick = () => this.toggleSidebar(true);
+        if(closeSidebar) closeSidebar.onclick = () => this.toggleSidebar(false);
+        
         document.querySelectorAll('.pill').forEach(btn => {
             btn.onclick = (e) => {
                 document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
@@ -56,7 +58,6 @@ const app = {
         const target = document.getElementById(`panel-${id}`);
         if(target) target.hidden = false;
         
-        // Actualizar Stepper (Mantiene pasos activos hasta el final)
         const stepMap = { 'restaurantes': 1, 'menu': 2, 'checkout': 3, 'exito': 3 };
         document.querySelectorAll('.step').forEach(s => {
             const stepNum = parseInt(s.dataset.step);
@@ -92,16 +93,18 @@ const app = {
         document.getElementById('current-res-name').textContent = res.nombre;
         
         const grid = document.getElementById('grid-platos');
-        grid.innerHTML = (this.data.menu[id] || []).map(p => `
-            <div class="card" style="cursor: default">
-                <img src="${p.img || './assets/logo-delivery.svg'}" class="card-img" style="height:120px; object-fit:contain; padding:10px;">
-                <div class="card-content">
-                    <h4>${p.nombre}</h4>
-                    <p style="color:var(--primary); font-weight:800; margin: 10px 0;">${p.precio.toFixed(2)} €</p>
-                    <button class="btn-action" onclick="app.addToCart('${p.nombre}', ${p.precio})">Añadir al carrito</button>
+        if(grid) {
+            grid.innerHTML = (this.data.menu[id] || []).map(p => `
+                <div class="card" style="cursor: default">
+                    <img src="${p.img}" class="card-img" style="height:120px; object-fit:contain; padding:10px;">
+                    <div class="card-content">
+                        <h4>${p.nombre}</h4>
+                        <p style="color:var(--primary); font-weight:800; margin: 10px 0;">${p.precio.toFixed(2)} €</p>
+                        <button class="btn-action" onclick="app.addToCart('${p.nombre}', ${p.precio})">Añadir al carrito</button>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `).join('');
+        }
 
         this.showPanel('menu');
     },
@@ -110,15 +113,17 @@ const app = {
         this.state.cart.push({ nombre, precio });
         this.updateUI();
         
-        // Feedback visual en el botón del carrito
         const btn = document.getElementById('cart-toggle');
-        btn.classList.add('shake-cart');
-        setTimeout(() => btn.classList.remove('shake-cart'), 400);
+        if(btn) {
+            btn.classList.add('shake-cart');
+            setTimeout(() => btn.classList.remove('shake-cart'), 400);
+        }
     },
 
     updateUI() {
         const count = this.state.cart.length;
-        document.getElementById('cart-badge').textContent = count;
+        const badge = document.getElementById('cart-badge');
+        if(badge) badge.textContent = count;
         
         const total = this.state.cart.reduce((s, i) => s + i.precio, 0);
         
@@ -149,10 +154,7 @@ const app = {
 
     completeOrder() {
         if(this.state.cart.length === 0) return alert("Tu carrito está vacío.");
-        
-        if(window.clarity) {
-            window.clarity("event", "pedido_completado");
-        }
+        if(window.clarity) window.clarity("event", "pedido_completado");
         this.showPanel('exito');
     },
 
@@ -164,5 +166,4 @@ const app = {
     }
 };
 
-// Arrancamos la aplicación
 app.init();

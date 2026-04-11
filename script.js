@@ -36,7 +36,6 @@ const app = {
     init() {
         this.renderRestaurantes();
         this.bindEvents();
-        this.injectCustomerForm();
     },
 
     bindEvents() {
@@ -53,30 +52,6 @@ const app = {
                 this.renderRestaurantes(e.target.dataset.cat);
             };
         });
-    },
-
-    // FIX 3: Inject a customer data form into the checkout panel
-    injectCustomerForm() {
-        const checkoutCard = document.querySelector('#panel-checkout .checkout-card');
-        if (!checkoutCard) return;
-
-        const form = document.createElement('div');
-        form.id = 'customer-form';
-        form.innerHTML = `
-            <h4 style="margin: 0 0 12px; font-size: 15px; font-weight: 600;">Datos de entrega</h4>
-            <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
-                <input id="cf-nombre" type="text" placeholder="Nombre completo" style="padding:10px 14px; border-radius:10px; border:1.5px solid var(--border, #e5e7eb); font-size:14px; font-family:inherit; outline:none; transition:border-color .2s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border, #e5e7eb)'">
-                <input id="cf-direccion" type="text" placeholder="Dirección de entrega" style="padding:10px 14px; border-radius:10px; border:1.5px solid var(--border, #e5e7eb); font-size:14px; font-family:inherit; outline:none; transition:border-color .2s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border, #e5e7eb)'">
-                <input id="cf-telefono" type="tel" placeholder="Teléfono" style="padding:10px 14px; border-radius:10px; border:1.5px solid var(--border, #e5e7eb); font-size:14px; font-family:inherit; outline:none; transition:border-color .2s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border, #e5e7eb)'">
-                <input id="cf-email" type="email" placeholder="Correo electrónico" style="padding:10px 14px; border-radius:10px; border:1.5px solid var(--border, #e5e7eb); font-size:14px; font-family:inherit; outline:none; transition:border-color .2s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border, #e5e7eb)'">
-                <div id="cf-error" style="display:none; color:#e53e3e; font-size:13px; font-weight:500;"></div>
-            </div>
-            <div style="border-top:1px solid var(--border, #e5e7eb); margin-bottom:16px;"></div>
-        `;
-
-        // Insert before the order summary heading
-        const heading = checkoutCard.querySelector('h3');
-        checkoutCard.insertBefore(form, heading.nextSibling);
     },
 
     showPanel(id) {
@@ -159,9 +134,14 @@ const app = {
     },
 
     addToCart(nombre, precio) {
-        this.state.cart.push({ nombre, precio });
+        const existing = this.state.cart.find(i => i.nombre === nombre);
+        if (existing) {
+            existing.cantidad++;
+        } else {
+            this.state.cart.push({ nombre, precio, cantidad: 1 });
+        }
         this.updateUI();
-        
+
         const btn = document.getElementById('cart-toggle');
         if(btn) {
             btn.classList.add('shake-cart');
@@ -169,12 +149,23 @@ const app = {
         }
     },
 
+    removeFromCart(nombre) {
+        const idx = this.state.cart.findIndex(i => i.nombre === nombre);
+        if (idx === -1) return;
+        if (this.state.cart[idx].cantidad > 1) {
+            this.state.cart[idx].cantidad--;
+        } else {
+            this.state.cart.splice(idx, 1);
+        }
+        this.updateUI();
+    },
+
     updateUI() {
         const count = this.state.cart.length;
         const badge = document.getElementById('cart-badge');
         if(badge) badge.textContent = count;
         
-        const total = this.state.cart.reduce((s, i) => s + i.precio, 0);
+        const total = this.state.cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
         
         const sidebarTotal = document.getElementById('sidebar-total');
         if(sidebarTotal) sidebarTotal.textContent = `${total.toFixed(2)} €`;
@@ -182,18 +173,31 @@ const app = {
         const finalPrice = document.getElementById('final-price');
         if(finalPrice) finalPrice.textContent = `${total.toFixed(2)} €`;
 
+        const cartItemHTML = this.state.cart.map(item => `
+            <div class="cart-item">
+                <span class="cart-item-name">${item.nombre}</span>
+                <div class="cart-item-controls">
+                    <button class="cart-qty-btn" onclick="app.removeFromCart('${item.nombre}')">−</button>
+                    <span class="cart-qty">${item.cantidad}</span>
+                    <button class="cart-qty-btn" onclick="app.addToCart('${item.nombre}', ${item.precio})">+</button>
+                    <strong class="cart-item-price">${(item.precio * item.cantidad).toFixed(2)}€</strong>
+                </div>
+            </div>
+        `).join('');
+
         const sidebarList = document.getElementById('sidebar-items');
         if(sidebarList) {
-            sidebarList.innerHTML = this.state.cart.map((item) => `
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
-                    <span>${item.nombre}</span>
-                    <strong>${item.precio.toFixed(2)}€</strong>
-                </div>
-            `).join('');
+            sidebarList.innerHTML = this.state.cart.length === 0
+                ? '<p class="cart-empty-msg">Aún no has agregado nada 🛒</p>'
+                : cartItemHTML;
         }
 
         const checkoutList = document.getElementById('checkout-list');
-        if(checkoutList && sidebarList) checkoutList.innerHTML = sidebarList.innerHTML;
+        if(checkoutList) {
+            checkoutList.innerHTML = this.state.cart.length === 0
+                ? ''
+                : cartItemHTML;
+        }
 
         // FIX 1: Disable the pay button when the cart is empty
         const btnPay = document.getElementById('btn-pay');
@@ -246,9 +250,9 @@ const app = {
         if (!el) return;
         if (msg) {
             el.textContent = msg;
-            el.style.display = 'block';
+            el.hidden = false;
         } else {
-            el.style.display = 'none';
+            el.hidden = true;
         }
     },
 

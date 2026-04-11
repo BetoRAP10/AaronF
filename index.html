@@ -6,7 +6,6 @@
     <title>ComidaRápida — Elite Delivery</title>
     
     <link rel="stylesheet" href="./styles.css">
-    
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;800&display=swap" rel="stylesheet">
     
     <script type="text/javascript">
@@ -46,6 +45,8 @@
     </nav>
 
     <main class="container main-content">
+
+        <!-- PANEL 1: Restaurantes -->
         <section id="panel-restaurantes" class="panel">
             <header class="promo-banner">
                 <div class="promo-content">
@@ -70,29 +71,52 @@
             <div id="grid-restaurantes" class="grid-display"></div>
         </section>
 
+        <!-- PANEL 2: Menú del restaurante -->
         <section id="panel-menu" class="panel" hidden>
             <div class="panel-nav">
                 <button class="btn-text" onclick="app.showPanel('restaurantes')">← Volver a restaurantes</button>
-                <h2 id="current-res-name" class="display-title">Cargando...</h2>
+                <h2 id="current-res-name" class="display-title"></h2>
             </div>
             <div id="grid-platos" class="grid-display"></div>
         </section>
 
+        <!-- PANEL 3: Checkout -->
         <section id="panel-checkout" class="panel" hidden>
             <div class="checkout-wrapper">
                 <div class="checkout-card">
+
+                    <!-- FIX 3: Formulario de datos de entrega declarado en HTML -->
+                    <div id="customer-form">
+                        <h4>Datos de entrega</h4>
+                        <div class="form-fields">
+                            <input id="cf-nombre"    type="text"  placeholder="Nombre completo"       autocomplete="name">
+                            <input id="cf-direccion" type="text"  placeholder="Dirección de entrega"  autocomplete="street-address">
+                            <input id="cf-telefono"  type="tel"   placeholder="Teléfono"              autocomplete="tel">
+                            <input id="cf-email"     type="email" placeholder="Correo electrónico"    autocomplete="email">
+                            <!-- FIX 3: Error visible dentro del formulario -->
+                            <p id="cf-error" class="form-error" hidden></p>
+                        </div>
+                    </div>
+
                     <h3>Resumen de tu pedido</h3>
                     <div id="checkout-list" class="order-list"></div>
                     <div class="divider"></div>
+
                     <div class="total-area">
                         <span>Total a pagar</span>
                         <strong id="final-price">0.00 €</strong>
                     </div>
-                    <button class="btn-action" id="btn-pay" onclick="app.completeOrder()">Confirmar y Realizar Pedido</button>
+
+                    <!-- FIX 1: Botón deshabilitado por defecto hasta que haya productos -->
+                    <button class="btn-action" id="btn-pay" onclick="app.completeOrder()" disabled>
+                        Confirmar y Realizar Pedido
+                    </button>
+
                 </div>
             </div>
         </section>
 
+        <!-- PANEL 4: Éxito -->
         <section id="panel-exito" class="panel" hidden>
             <div class="success-screen">
                 <div class="success-icon">✓</div>
@@ -101,16 +125,23 @@
                 <button class="btn-action" onclick="app.resetToHome()">Volver al Inicio</button>
             </div>
         </section>
+
     </main>
 
     <aside class="cart-sidebar" id="sidebar">
         <div class="sidebar-header">
             <h3>Tu Carrito</h3>
-            <button class="close-sidebar-btn" id="close-sidebar" aria-label="Cerrar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <button class="close-sidebar-btn" id="close-sidebar" aria-label="Cerrar carrito">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
             </button>
         </div>
-        <div class="sidebar-items" id="sidebar-items"></div>
+        <div class="sidebar-items" id="sidebar-items">
+            <!-- FIX 2: Mensaje cuando el carrito está vacío -->
+            <p class="cart-empty-msg">Aún no has agregado nada 🛒</p>
+        </div>
         <div class="sidebar-footer">
             <div class="subtotal">Total: <span id="sidebar-total">0.00 €</span></div>
             <button class="btn-action" onclick="app.showPanel('checkout')">Ver mi resumen</button>
